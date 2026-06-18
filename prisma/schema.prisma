@@ -1,0 +1,225 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+
+  role          Role
+
+  mobileNumber  String   @unique
+  email         String?  @unique
+
+  password      String?
+
+  isVerified    Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  student       Student?
+  teacher       Teacher?
+  admin         Admin?
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+
+model Student {
+  id                  String   @id @default(cuid())
+
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+
+
+  fullName            String
+  fatherName          String
+  motherName          String
+
+  dob                 DateTime
+  gender              String
+
+  address             String
+  district            String
+  state               String
+
+  highestQualification String?
+  schoolCollege        String?
+  passingYear          Int?
+  category             String?
+  experience           String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  enrollment          Enrollment?
+  documents           StudentDocument?
+
+  payments            Payment[]  
+}
+
+
+model Teacher {
+  id                  String   @id @default(cuid())
+
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id])
+
+  fullName            String
+
+  dob                 DateTime?
+  gender              String?
+
+  address             String
+  district            String?
+  state               String?
+
+  qualification       String
+
+  teachingExperience  Int?
+
+  expertiseSubjects   String?
+  skills              String?
+  certifications      String?
+
+  preferredCenter1    String?
+  preferredCenter2    String?
+
+  subjectsCanTeach    String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  documents           TeacherDocument?
+  payments            TeacherPayment[]
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+
+  name         String
+  designation  String?
+  department   String?
+
+  createdAt    DateTime @default(now())
+}
+
+model Enrollment {
+  id               String   @id @default(cuid())
+
+  studentId        String   @unique
+  student          Student  @relation(fields: [studentId], references: [id])
+
+  courseId         String
+  subjectId        String
+  centerId         String
+
+  batch            String?
+  learningMode     String?
+  preferredTiming  String?
+
+  createdAt        DateTime @default(now())
+}
+
+model StudentDocument {
+  id                   String   @id @default(cuid())
+
+  studentId            String   @unique
+  student              Student  @relation(fields: [studentId], references: [id])
+
+  passportPhoto        String?
+  signature            String?
+  aadhaarCard          String?
+  academicCertificate  String?
+
+  createdAt            DateTime @default(now())
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+
+  studentId         String
+  student           Student  @relation(fields: [studentId], references: [id])
+
+  amount            Decimal  @db.Decimal(10,2)
+
+  paymentMethod     String
+  transactionId     String?  @unique
+
+  status            PaymentStatus @default(PENDING)
+
+  createdAt         DateTime @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Course {
+  id          String @id @default(cuid())
+
+  name        String
+  fee         Decimal @db.Decimal(10,2)
+
+  createdAt   DateTime @default(now())
+}
+
+model Center {
+  id        String @id @default(cuid())
+
+  name      String
+  district  String
+
+  createdAt DateTime @default(now())
+}
+
+
+model TeacherDocument {
+  id                       String   @id @default(cuid())
+
+  teacherId                String   @unique
+  teacher                  Teacher  @relation(fields: [teacherId], references: [id])
+
+  photo                    String?
+  resumeCV                 String?
+  educationalCertificates  String?
+  idProof                  String?
+
+  createdAt                DateTime @default(now())
+}
+
+model TeacherPayment {
+  id                String   @id @default(cuid())
+
+  teacherId         String
+  teacher           Teacher  @relation(fields: [teacherId], references: [id])
+
+  amount            Decimal  @db.Decimal(10,2)
+
+  paymentMethod     String
+  transactionId     String? @unique
+
+  status            PaymentStatus @default(PENDING)
+
+  createdAt         DateTime @default(now())
+}
+
