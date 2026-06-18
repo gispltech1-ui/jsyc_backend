@@ -6,7 +6,7 @@ import teacherRoutes from "./route/teacher.route";
 import globalLogin from "./route/auth.route";
 
 const app = express();
-
+// test
 app.use(cors());
 app.use(express.json());
 
