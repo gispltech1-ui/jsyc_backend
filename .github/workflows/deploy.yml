@@ -5,56 +5,70 @@ on:
     branches:
       - main
 
+concurrency:
+  group: backend-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npm run prisma:generate
-
-      - name: Build Application
-        run: npm run build
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
           script: |
-            cd /var/www/backend
+            set -e
 
-            echo "Pulling latest code..."
-            git pull origin main
+            APP_DIR="/var/www/backend"
 
-            echo "Installing dependencies..."
+            echo "======================================="
+            echo "🚀 Starting Backend Deployment..."
+            echo "======================================="
+
+            cd $APP_DIR
+
+            echo "📥 Fetching latest code..."
+            git fetch origin
+
+            echo "🔄 Resetting to latest main branch..."
+            git reset --hard origin/main
+
+            echo "📦 Installing dependencies..."
             npm ci
 
-            echo "Generating Prisma client..."
+            echo "✅ Validating Prisma schema..."
+            npx prisma validate
+
+            echo "⚙️ Generating Prisma Client..."
             npm run prisma:generate
 
-            echo "Building application..."
+            echo "🏗️ Building application..."
             npm run build
 
-            echo "Running migrations..."
+            echo "🗄️ Running Prisma migrations..."
             npm run migrate:deploy
 
-            echo "Restarting PM2..."
-            pm2 restart backend || pm2 start dist/server.js --name backend
+            echo "♻️ Reloading PM2..."
+            if pm2 describe backend > /dev/null 2>&1; then
+              pm2 reload backend
+            else
+              pm2 start dist/server.js --name backend
+            fi
 
             pm2 save
 
-            echo "Deployment completed successfully"
+            echo "⏳ Waiting for application to start..."
+            sleep 10
+
+            echo "❤️ Checking Health Endpoint..."
+            curl --fail http://localhost:3000/health
+
+            echo ""
+            echo "======================================="
+            echo "✅ Backend Deployment Successful!"
+            echo "======================================="
