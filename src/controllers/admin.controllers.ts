@@ -82,3 +82,247 @@ export const registerAdmin = async (
     });
   }
 };
+
+export const adminDashboard = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const [
+      totalStudents,
+      totalTeachers,
+      totalCourses,
+      totalSubjects,
+      totalCenters,
+
+      totalStudentPayments,
+      totalTeacherPayments,
+
+      recentStudents,
+      recentTeachers,
+
+      pendingPayments,
+      successPayments,
+
+      coursePopularity,
+    ] = await Promise.all([
+
+      // =========================
+      // COUNTS
+      // =========================
+
+      prisma.student.count(),
+
+      prisma.teacher.count(),
+
+      prisma.course.count(),
+
+      prisma.subject.count(),
+
+      prisma.center.count(),
+
+
+      // =========================
+      // STUDENT REVENUE
+      // =========================
+
+      prisma.payment.aggregate({
+        where: {
+          paymentFor: "STUDENT_REGISTRATION",
+          status: "SUCCESS",
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+
+      // =========================
+      // TEACHER REVENUE
+      // =========================
+
+      prisma.payment.aggregate({
+        where: {
+          paymentFor: "TEACHER_REGISTRATION",
+          status: "SUCCESS",
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+
+
+      // =========================
+      // RECENT STUDENTS
+      // =========================
+
+      prisma.student.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+
+        take: 5,
+
+        include: {
+          user: {
+            select: {
+              id: true,
+              role: true,
+              mobileNumber: true,
+              email: true,
+              isVerified: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+
+
+      // =========================
+      // RECENT TEACHERS
+      // =========================
+
+      prisma.teacher.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+
+        take: 5,
+
+        include: {
+          user: {
+            select: {
+              id: true,
+              role: true,
+              mobileNumber: true,
+              email: true,
+              isVerified: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+
+
+      // =========================
+      // PENDING PAYMENTS
+      // =========================
+
+      prisma.payment.count({
+        where: {
+          status: "PENDING",
+        },
+      }),
+
+
+      // =========================
+      // SUCCESS PAYMENTS
+      // =========================
+
+      prisma.payment.count({
+        where: {
+          status: "SUCCESS",
+        },
+      }),
+
+
+      // =========================
+      // COURSE POPULARITY
+      // =========================
+
+      prisma.course.findMany({
+        select: {
+          id: true,
+          name: true,
+
+          _count: {
+            select: {
+              enrollments: true,
+            },
+          },
+        },
+
+        orderBy: {
+          enrollments: {
+            _count: "desc",
+          },
+        },
+      }),
+    ]);
+
+
+    // =========================
+    // TOTAL REVENUE
+    // =========================
+
+    const totalRevenue =
+      Number(totalStudentPayments._sum.amount || 0) +
+      Number(totalTeacherPayments._sum.amount || 0);
+
+
+    // =========================
+    // COURSE POPULARITY FORMAT
+    // =========================
+
+    const coursePopularityData =
+      coursePopularity.map((course) => ({
+        course: course.name,
+        students: course._count.enrollments,
+      }));
+
+
+    // =========================
+    // RESPONSE
+    // =========================
+
+    return res.status(200).json({
+
+      success: true,
+
+      data: {
+
+        cards: {
+
+          totalStudents,
+
+          totalTeachers,
+
+          totalCourses,
+
+          totalSubjects,
+
+          totalCenters,
+
+          totalRevenue,
+
+          pendingPayments,
+
+          successPayments,
+
+        },
+
+        recentStudents,
+
+        recentTeachers,
+
+        coursePopularity:
+          coursePopularityData,
+
+      },
+
+    });
+
+  } catch (error) {
+
+    console.log(error);
+
+    return res.status(500).json({
+
+      success: false,
+
+      message: "Internal Server Error",
+
+    });
+
+  }
+};

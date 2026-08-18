@@ -12,160 +12,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id            String   @id @default(cuid())
-
-  role          Role
-
-  mobileNumber  String   @unique
-  email         String?  @unique
-
-  password      String?
-
-  isVerified    Boolean  @default(false)
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  student       Student?
-  teacher       Teacher?
-  admin         Admin?
-}
-
 enum Role {
   STUDENT
   TEACHER
   ADMIN
-}
-
-
-model Student {
-  id                  String   @id @default(cuid())
-
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id])
-
-
-  fullName            String
-  fatherName          String
-  motherName          String
-
-  dob                 DateTime
-  gender              String
-
-  address             String
-  district            String
-  state               String
-
-  highestQualification String?
-  schoolCollege        String?
-  passingYear          Int?
-  category             String?
-  experience           String?
-
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  enrollment          Enrollment?
-  documents           StudentDocument?
-
-  payments            Payment[]  
-}
-
-
-model Teacher {
-  id                  String   @id @default(cuid())
-
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id])
-
-  fullName            String
-
-  dob                 DateTime?
-  gender              String?
-
-  address             String
-  district            String?
-  state               String?
-
-  qualification       String
-
-  teachingExperience  Int?
-
-  expertiseSubjects   String?
-  skills              String?
-  certifications      String?
-
-  preferredCenter1    String?
-  preferredCenter2    String?
-
-  subjectsCanTeach    String?
-
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  documents           TeacherDocument?
-  payments            TeacherPayment[]
-}
-
-model Admin {
-  id           String   @id @default(cuid())
-
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id])
-
-  name         String
-  designation  String?
-  department   String?
-
-  createdAt    DateTime @default(now())
-}
-
-model Enrollment {
-  id               String   @id @default(cuid())
-
-  studentId        String   @unique
-  student          Student  @relation(fields: [studentId], references: [id])
-
-  courseId         String
-  subjectId        String
-  centerId         String
-
-  batch            String?
-  learningMode     String?
-  preferredTiming  String?
-
-  createdAt        DateTime @default(now())
-}
-
-model StudentDocument {
-  id                   String   @id @default(cuid())
-
-  studentId            String   @unique
-  student              Student  @relation(fields: [studentId], references: [id])
-
-  passportPhoto        String?
-  signature            String?
-  aadhaarCard          String?
-  academicCertificate  String?
-
-  createdAt            DateTime @default(now())
-}
-
-model Payment {
-  id                String   @id @default(cuid())
-
-  studentId         String
-  student           Student  @relation(fields: [studentId], references: [id])
-
-  amount            Decimal  @db.Decimal(10,2)
-
-  paymentMethod     String
-  transactionId     String?  @unique
-
-  status            PaymentStatus @default(PENDING)
-
-  createdAt         DateTime @default(now())
 }
 
 enum PaymentStatus {
@@ -174,52 +24,280 @@ enum PaymentStatus {
   FAILED
 }
 
-model Course {
-  id          String @id @default(cuid())
-
-  name        String
-  fee         Decimal @db.Decimal(10,2)
-
-  createdAt   DateTime @default(now())
+enum PaymentFor {
+  STUDENT_REGISTRATION
+  TEACHER_REGISTRATION
 }
 
-model Center {
-  id        String @id @default(cuid())
+enum PaymentMethod {
+  PAYU
+  CASH
+  UPI
+  BANK_TRANSFER
+}
 
-  name      String
-  district  String
+enum NotificationType {
+  GENERAL
+  ANNOUNCEMENT
+  DOCUMENT
+}
+
+
+model User {
+  id String @id @default(cuid())
+
+  role Role
+
+  mobileNumber String  @unique
+  email        String? @unique
+
+  password String?
+
+  isVerified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student?
+  teacher Teacher?
+  admin   Admin?
+}
+
+model Student {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  fullName   String
+  fatherName String
+  motherName String
+
+  dob    DateTime
+  gender String
+
+  address  String
+  district String
+  state    String
+
+  highestQualification String?
+  schoolCollege        String?
+  passingYear          Int?
+  category             String?
+  experience           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollment Enrollment?
+  documents  StudentDocument?
+
+  payments Payment[]
+}
+
+model Teacher {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+
+  // Personal Details
+  fullName String
+  dob DateTime?
+  gender String?
+  address String
+
+  // Professional Details
+  highestQualification String
+
+  teachingExperience Int?
+  expertiseSubjects String?
+  skills String?
+  certifications String?
+
+  // Preferred Centers
+  preferredCenter1 String?
+  preferredCenter2 String?
+  subjectsCanTeach String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents TeacherDocument?
+
+  payments Payment[]
+}
+
+model Admin {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  name        String
+  designation String?
+  department  String?
 
   createdAt DateTime @default(now())
 }
 
+model Enrollment {
+  id String @id @default(cuid())
+
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id])
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id])
+  courseId  String
+  course    Course  @relation(fields: [courseId], references: [id])
+
+  centerId String
+  center   Center @relation(fields: [centerId], references: [id])
+
+  batch           String?
+  learningMode    String?
+  preferredTiming String?
+
+  createdAt DateTime @default(now())
+}
+
+model StudentDocument {
+  id String @id @default(cuid())
+
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id])
+
+  passportPhoto       String?
+  signature           String?
+  aadhaarCard         String?
+  academicCertificate String?
+
+  createdAt DateTime @default(now())
+}
+
+model Course {
+  id String @id @default(cuid())
+
+  name String
+  fee  Decimal @db.Decimal(10, 2)
+
+  createdAt  DateTime     @default(now())
+  enrollments  Enrollment[]
+}
+
+model Center {
+  id String @id @default(cuid())
+
+  name     String
+  district String
+
+  createdAt  DateTime     @default(now())
+  enrollments  Enrollment[]
+}
 
 model TeacherDocument {
-  id                       String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  teacherId                String   @unique
-  teacher                  Teacher  @relation(fields: [teacherId], references: [id])
+  teacherId String @unique
+  teacher Teacher @relation(fields: [teacherId], references: [id])
 
-  photo                    String?
-  resumeCV                 String?
-  educationalCertificates  String?
-  idProof                  String?
+  photo String?
 
-  createdAt                DateTime @default(now())
+  resumeCV String?
+
+  educationalCertificates String?
+
+  idProof String?
+
+  createdAt DateTime @default(now())
 }
 
-model TeacherPayment {
-  id                String   @id @default(cuid())
+model Payment {
+  id String @id @default(cuid())
 
-  teacherId         String
-  teacher           Teacher  @relation(fields: [teacherId], references: [id])
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
 
-  amount            Decimal  @db.Decimal(10,2)
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
 
-  paymentMethod     String
-  transactionId     String? @unique
+  paymentFor PaymentFor
 
-  status            PaymentStatus @default(PENDING)
+  amount Decimal @db.Decimal(10, 2)
 
-  createdAt         DateTime @default(now())
+  paymentMethod PaymentMethod
+
+  transactionId String @unique
+
+  status PaymentStatus @default(PENDING)
+
+  gatewayResponse Json?
+
+  failureReason String?
+
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
 }
 
+model Subject {
+  id   String @id @default(cuid())
+  name String
+
+  enrollments Enrollment[]
+}
+
+model Tender {
+  id          String   @id @default(cuid())
+
+  title       String
+  description String?
+  tenderNo    String?
+  publishDate DateTime @default(now())
+  closingDate DateTime?
+
+  pdfUrl      String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  content     String?
+  publishDate DateTime @default(now())
+  imageUrl    String?
+  isPublished Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  title String
+  message String
+
+  type NotificationType @default(GENERAL)
+
+  // Notification for everyone
+  isForAll Boolean @default(true)
+
+  // PDF/document attachment
+  pdfUrl String?
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isForAll])
+  @@index([isRead])
+  @@index([createdAt])
+}

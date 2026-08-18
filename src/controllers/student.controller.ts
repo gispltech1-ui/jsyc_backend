@@ -11,21 +11,72 @@ export const registerStudent = async (
 ) => {
   try {
     const {
-      mobileNumber,
-      email,
-      password,
+      mobile,
+      otp,
 
-      personalDetails,
-      academicDetails,
-      enrollmentDetails,
-      documents,
-      payment,
+      firstName,
+      fatherName,
+      motherName,
+
+      gender,
+      dob,
+
+      email,
+      address,
+      district,
+
+      academicQualification,
+      schoolCollegeName,
+      passingYear,
+      category,
+      experience,
+
+      courseId,
+      subjectId,
+      centerId,
+      batchId,
+
+      learningMode,
+      preferredTiming,
+
+      declarationAccepted,
+      paymentMethod,
     } = req.body;
+
+
+    const files = req.files as {
+      photo?: Express.Multer.File[];
+      signature?: Express.Multer.File[];
+      aadhaar?: Express.Multer.File[];
+      certificate?: Express.Multer.File[];
+    };
+
+    const passportPhoto =
+      files?.photo?.[0]?.path ?? "";
+
+    const signature =
+      files?.signature?.[0]?.path ?? "";
+
+    const aadhaarCard =
+      files?.aadhaar?.[0]?.path ?? "";
+
+    const academicCertificate =
+      files?.certificate?.[0]?.path ?? "";
+
+    // const {
+    //   mobileNumber,
+    //   email,
+    //   password,
+    //   personalDetails,
+    //   academicDetails,
+    //   enrollmentDetails,
+    //   documents
+    // } = req.body;
 
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { mobileNumber },
+          { mobileNumber: mobile },
           ...(email ? [{ email }] : []),
         ],
       },
@@ -38,17 +89,27 @@ export const registerStudent = async (
       });
     }
 
+    const defaultPassword = mobile;
+
     const hashedPassword = await bcrypt.hash(
-      password,
+      defaultPassword,
       10
     );
+
+    // const hashedPassword = await bcrypt.hash(
+    //   password,
+    //   10
+    // );
+
+    const transactionId = `JSYC-STD-${Date.now()}`;
+    const STUDENT_REGISTRATION_FEE = 100;
 
     const result = await prisma.$transaction(
       async (tx: any) => {
         const user = await tx.user.create({
           data: {
             role: "STUDENT",
-            mobileNumber,
+            mobileNumber: mobile,
             email,
             password: hashedPassword,
             isVerified: true,
@@ -59,45 +120,33 @@ export const registerStudent = async (
           data: {
             userId: user.id,
 
-            fullName:
-              personalDetails.fullName,
+            fullName: firstName,
 
-            fatherName:
-              personalDetails.fatherName,
+            fatherName,
 
-            motherName:
-              personalDetails.motherName,
+            motherName,
 
-            dob: new Date(
-              personalDetails.dob
-            ),
+            dob: new Date(dob),
 
-            gender:
-              personalDetails.gender,
+            gender,
 
-            address:
-              personalDetails.address,
+            address,
 
-            district:
-              personalDetails.district,
+            district,
 
-            state:
-              personalDetails.state,
+            state: "Jharkhand",
 
             highestQualification:
-              academicDetails.highestQualification,
+              academicQualification,
 
             schoolCollege:
-              academicDetails.schoolCollege,
+              schoolCollegeName,
 
-            passingYear:
-              academicDetails.passingYear,
+            passingYear: Number(passingYear),
 
-            category:
-              academicDetails.category,
+            category,
 
-            experience:
-              academicDetails.experience,
+            experience,
           },
         });
 
@@ -105,23 +154,17 @@ export const registerStudent = async (
           data: {
             studentId: student.id,
 
-            subjectId:enrollmentDetails.subjectId,
+            courseId,
 
+            subjectId,
 
-            courseId:
-              enrollmentDetails.courseId,
+            centerId,
 
-            centerId:
-              enrollmentDetails.centerId,
+            batch: batchId,
 
-            batch:
-              enrollmentDetails.batch,
+            learningMode,
 
-            learningMode:
-              enrollmentDetails.learningMode,
-
-            preferredTiming:
-              enrollmentDetails.preferredTiming,
+            preferredTiming,
           },
         });
 
@@ -129,49 +172,64 @@ export const registerStudent = async (
           data: {
             studentId: student.id,
 
-            passportPhoto:
-              documents.passportPhoto,
+            passportPhoto,
 
-            signature:
-              documents.signature,
+            signature,
 
-            aadhaarCard:
-              documents.aadhaarCard,
+            aadhaarCard,
 
-            academicCertificate:
-              documents.academicCertificate,
+            academicCertificate,
           },
         });
 
-        await tx.payment.create({
+        //         await tx.payment.create({
+        //   data: {
+        //     studentId: student.id,
+
+        //     paymentFor: "STUDENT_REGISTRATION",
+
+        //     amount: STUDENT_REGISTRATION_FEE,
+
+        //     paymentMethod: "PAYU",
+
+        //     transactionId,
+
+        //     status: "PENDING",
+        //   },
+        // });
+
+
+        const paymentRecord = await tx.payment.create({
           data: {
             studentId: student.id,
 
-            amount:
-              payment.amount,
+            paymentFor: "STUDENT_REGISTRATION",
 
-            paymentMethod:
-              payment.paymentMethod,
+            amount: STUDENT_REGISTRATION_FEE,
 
-            transactionId:
-              payment.transactionId,
+            paymentMethod: paymentMethod || "PAYU",
 
-            status: "SUCCESS",
+            transactionId,
+
+            status: "PENDING",
           },
         });
-
         return {
-          user,
-          student,
+          studentId: student.id,
+          transactionId: paymentRecord.transactionId,
+          amount: paymentRecord.amount,
         };
       }
     );
 
     return res.status(201).json({
       success: true,
-      message:
-        "Student registered successfully",
-      data: result,
+      message: "Student registered successfully",
+      data: {
+        studentId: result.studentId,
+        transactionId: result.transactionId,
+        amount: result.amount,
+      },
     });
   } catch (error) {
     console.error(error);
@@ -190,17 +248,48 @@ export const getStudentById = async (
   res: Response
 ) => {
   try {
+    const { id }:any = req.params;
+
     const student = await prisma.student.findUnique({
       where: {
-        id: req.params.id as any,
+        userId:id,
+      },
+      include: {
+        user: true,
+
+        documents: true,
+
+        enrollment: {
+          include: {
+            course: true,
+            subject: true,
+            center: true,
+          },
+        },
+
+        payments: {
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
       },
     });
 
-    return res.json({
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    return res.status(200).json({
       success: true,
       data: student,
     });
+
   } catch (error) {
+    console.error(error);
+
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",
@@ -222,7 +311,7 @@ export const studentDashboard = async (
       include: {
         user: true,
         enrollment: true,
-        payments:true
+        payments: true
       }
     });
 
@@ -244,29 +333,65 @@ export const getAllStudent = async (
   res: Response
 ) => {
   try {
+    const page = Number(req.query.page) || 1;
+    const limit = 10;
 
-    const students = await prisma.student.findMany({
-      include: {
-        user: true,
-        enrollment: true,
-        documents: true
-      }
-    });
+    const skip = (page - 1) * limit;
+
+    const [students, totalStudents] =
+      await prisma.$transaction([
+        prisma.student.findMany({
+          skip,
+          take: limit,
+
+          include: {
+            user: true,
+
+            enrollment: {
+              include: {
+                course: true,
+                subject: true,
+                center: true,
+              },
+            },
+
+            documents: true,
+            payments: true,
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+
+        prisma.student.count(),
+      ]);
+
+    const totalPages = Math.ceil(
+      totalStudents / limit
+    );
 
     return res.status(200).json({
       success: true,
-      count: students.length,
-      data: students
+
+      data: students,
+
+      pagination: {
+        currentPage: page,
+        perPage: limit,
+        totalStudents,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
     });
 
   } catch (error) {
-
-    console.log(error);
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error"
+      message: "Internal Server Error",
     });
-
   }
 };
