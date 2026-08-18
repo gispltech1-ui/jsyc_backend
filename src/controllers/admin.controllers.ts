@@ -83,6 +83,8 @@ export const registerAdmin = async (
   }
 };
 
+// done
+
 export const adminDashboard = async (
   req: Request,
   res: Response
